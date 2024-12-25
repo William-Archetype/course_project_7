@@ -17,7 +17,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
-  void _submit() {
+  void _submit() async {
     final isValid = _formKey.currentState!.validate();
 
     if (!isValid) {
@@ -26,12 +26,32 @@ class _AuthScreenState extends State<AuthScreen> {
 
     _formKey.currentState!.save();
 
-    if (_isLogin) {
-      // Log user in
-    } else {
-      
+    print('Entered email: $_enteredEmail');
+
+    try {
+      if (_isLogin) {
+        final userCredentials = await _firebase.signInWithEmailAndPassword(
+          email: _enteredEmail,
+          password: _enteredPassword,
+        );
+      } else {
+        final userCredentials = await _firebase.createUserWithEmailAndPassword(
+          email: _enteredEmail,
+          password: _enteredPassword,
+        );
+      }
+    } on FirebaseAuthException catch (error) {
+        if (error.code == 'email-already-in-use') {
+          // print('This email address is already in use.');
+        }
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.message ?? 'An error occurred.'),
+          ),
+        );
+      }
     }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,14 +91,18 @@ class _AuthScreenState extends State<AuthScreen> {
                             autocorrect: false,
                             textCapitalization: TextCapitalization.none,
                             validator: (value) {
-                              if (value == null || value.trim().isEmpty || !value.contains('@')) {
+                              if (value == null ||
+                                  value.trim().isEmpty ||
+                                  !value.contains('@')) {
                                 return 'Please enter a valid email address.';
                               }
 
                               return null;
                             },
                             onSaved: (value) {
-                              _enteredEmail = value!;
+                              setState(() {
+                                _enteredEmail = value!.trim();
+                              });
                             },
                           ),
                           TextFormField(
@@ -95,14 +119,18 @@ class _AuthScreenState extends State<AuthScreen> {
                               return null;
                             },
                             onSaved: (value) {
-                              _enteredPassword = value!;
+                              setState(() {
+                                _enteredPassword = value!.trim();
+                              });
                             },
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton(
                             onPressed: _submit,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer,
                             ),
                             child: Text(_isLogin ? 'Login' : 'Sign Up'),
                           ),
